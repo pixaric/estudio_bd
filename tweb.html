@@ -89,7 +89,7 @@
 
             const shopConfig = {
                 name: "Mi Tienda Express",
-                phone: "5350000000", // Número de ejemplo de Cuba
+                phone: "5350000000",
                 currency: "CUP"
             };
 
@@ -141,7 +141,7 @@
                     }
                     setIsModalOpen(false);
                     setEditingProduct(null);
-                } catch (err) { alert("Error al guardar. Revisa tus reglas de Firestore."); }
+                } catch (err) { alert("Error al guardar."); }
             };
 
             const filteredProducts = useMemo(() => {
@@ -151,7 +151,6 @@
                 );
             }, [products, searchTerm, selectedCategory]);
 
-            // Separar recomendados
             const recommendedProducts = useMemo(() => products.filter(p => p.isFeatured), [products]);
 
             if (loading) return (
@@ -199,7 +198,7 @@
                     <main className="max-w-7xl mx-auto px-4 py-8">
                         {view === 'shop' ? (
                             <div className="space-y-12">
-                                {/* Sección de Recomendados (si existen y no hay búsqueda activa) */}
+                                {/* Recomendados */}
                                 {!searchTerm && recommendedProducts.length > 0 && selectedCategory === 'Todas' && (
                                     <div className="space-y-6">
                                         <div className="flex items-center gap-3">
@@ -213,18 +212,14 @@
                                                         <img src={p.image} className="w-full h-full object-cover" />
                                                         <div className="absolute top-4 left-4 flex gap-2">
                                                             <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-indigo-200">Destacado</span>
-                                                            {p.oldPrice && (
-                                                                <span className="badge-discount text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-red-200">Oferta</span>
-                                                            )}
+                                                            {p.oldPrice && <span className="badge-discount text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-red-200">Oferta</span>}
                                                         </div>
                                                     </div>
                                                     <div className="p-6">
                                                         <h3 className="font-bold text-lg mb-1">{p.name}</h3>
                                                         <div className="flex items-end gap-2 mb-4">
                                                             <span className="text-2xl font-black text-slate-900">{p.price} {shopConfig.currency}</span>
-                                                            {p.oldPrice && (
-                                                                <span className="text-sm text-slate-400 line-through mb-1">{p.oldPrice} {shopConfig.currency}</span>
-                                                            )}
+                                                            {p.oldPrice && <span className="text-sm text-slate-400 line-through mb-1">{p.oldPrice} {shopConfig.currency}</span>}
                                                         </div>
                                                         <button 
                                                             onClick={() => window.open(`https://wa.me/${shopConfig.phone}?text=${encodeURIComponent(`Hola! Me interesa este recomendado: ${p.name}`)}`)} 
@@ -273,16 +268,12 @@
                                                         <h3 className="font-bold text-lg mb-1 line-clamp-1">{p.name}</h3>
                                                         <p className="text-slate-400 text-xs mb-4 line-clamp-2 h-8 leading-relaxed">{p.description}</p>
                                                         <div className="flex flex-col mb-4">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-2xl font-black text-slate-900">{p.price} {shopConfig.currency}</span>
-                                                            </div>
-                                                            {p.oldPrice && (
-                                                                <span className="text-xs text-slate-300 line-through">{p.oldPrice} {shopConfig.currency}</span>
-                                                            )}
+                                                            <span className="text-2xl font-black text-slate-900">{p.price} {shopConfig.currency}</span>
+                                                            {p.oldPrice && <span className="text-xs text-slate-300 line-through">{p.oldPrice} {shopConfig.currency}</span>}
                                                         </div>
                                                         <button 
                                                             onClick={() => window.open(`https://wa.me/${shopConfig.phone}?text=${encodeURIComponent(`Hola! Quiero comprar: ${p.name}`)}`)} 
-                                                            className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 font-bold"
+                                                            className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl shadow-lg flex items-center justify-center gap-2 font-bold"
                                                         >
                                                             <Icon name="message-circle" size={20} /> Pedir ahora
                                                         </button>
@@ -303,7 +294,7 @@
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-3xl border border-slate-100 gap-4">
                                     <div>
                                         <h2 className="text-2xl font-black text-indigo-900">Panel de Control</h2>
-                                        <p className="text-slate-400 text-sm">Gestiona tus precios en {shopConfig.currency}</p>
+                                        <p className="text-slate-400 text-sm">Gestiona tus productos</p>
                                     </div>
                                     <button 
                                         onClick={() => {setEditingProduct(null); setIsModalOpen(true);}} 
@@ -318,7 +309,7 @@
                                             <thead className="bg-slate-50 border-b border-slate-100">
                                                 <tr>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Producto</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Precio Oferta</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Precio</th>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
                                                 </tr>
                                             </thead>
@@ -337,7 +328,6 @@
                                                         </td>
                                                         <td className="px-6 py-4 font-black text-indigo-600">
                                                             {p.price} {shopConfig.currency}
-                                                            {p.oldPrice && <span className="block text-[10px] text-slate-300 line-through">{p.oldPrice} {shopConfig.currency}</span>}
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
                                                             <div className="flex justify-end gap-2">
@@ -382,7 +372,24 @@
                                         </div>
                                     </div>
 
-                                    <input name="category" defaultValue={editingProduct?.category} placeholder="Categoría (Ej: Hogar, Ropa)" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
+                                    {/* SELECTOR DE CATEGORÍA MEJORADO */}
+                                    <div>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block ml-1">Categoría (Elige o Escribe una nueva)</label>
+                                        <input 
+                                            name="category" 
+                                            list="categoryList"
+                                            defaultValue={editingProduct?.category} 
+                                            placeholder="Escribe o selecciona..." 
+                                            required 
+                                            className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20" 
+                                        />
+                                        <datalist id="categoryList">
+                                            {categories.filter(c => c !== 'Todas').map(c => (
+                                                <option key={c} value={c} />
+                                            ))}
+                                        </datalist>
+                                    </div>
+
                                     <input name="image" defaultValue={editingProduct?.image} placeholder="URL Imagen" className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
                                     <textarea name="description" defaultValue={editingProduct?.description} placeholder="Breve descripción..." className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none h-24 resize-none" />
                                     
