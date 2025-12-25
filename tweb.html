@@ -18,8 +18,8 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         .product-card:hover img { transform: scale(1.05); }
-        /* Evita destellos de contenido no cargado */
-        [v-cloak] { display: none; }
+        .badge-discount { background: linear-gradient(135deg, #ff416c, #ff4b2b); }
+        .featured-border { border: 2px solid #6366f1; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -54,10 +54,8 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
 
-        // Icono seguro: No rompe la app si Lucide falla
         const Icon = ({ name, size = 18, className = "" }) => {
             const iconRef = useRef(null);
-
             useEffect(() => {
                 const timer = setTimeout(() => {
                     if (iconRef.current && window.lucide) {
@@ -70,14 +68,11 @@
                             if (className) i.className = className;
                             iconRef.current.appendChild(i);
                             window.lucide.createIcons({ node: iconRef.current });
-                        } catch (e) {
-                            console.warn("Error rendering icon:", name, e);
-                        }
+                        } catch (e) { console.warn("Icon error:", name, e); }
                     }
                 }, 0);
                 return () => clearTimeout(timer);
             }, [name, size, className]);
-
             return <span ref={iconRef} className="inline-flex items-center justify-center min-w-[18px] min-h-[18px]"></span>;
         };
 
@@ -94,8 +89,8 @@
 
             const shopConfig = {
                 name: "Mi Tienda Express",
-                phone: "5491122334455",
-                currency: "$"
+                phone: "5350000000", // Número de ejemplo de Cuba
+                currency: "CUP"
             };
 
             useEffect(() => {
@@ -103,13 +98,8 @@
                     if (window.FirebaseAuth && window.FirebaseDB) {
                         clearInterval(checkFirebase);
                         const { auth, signInAnonymously, onAuthStateChanged } = window.FirebaseAuth;
-                        
                         signInAnonymously(auth).catch(e => console.error("Auth fail:", e));
-                        
-                        onAuthStateChanged(auth, (u) => {
-                            setUser(u);
-                            setLoading(false);
-                        });
+                        onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
                     }
                 }, 100);
                 return () => clearInterval(checkFirebase);
@@ -118,17 +108,13 @@
             useEffect(() => {
                 if (!user || !window.FirebaseDB) return;
                 const { db, collection, onSnapshot, query } = window.FirebaseDB;
-                
                 const productsRef = collection(db, 'products');
-                const unsubscribe = onSnapshot(query(productsRef), 
-                    (snapshot) => {
-                        const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                        setProducts(prods);
-                        const uniqueCats = ['Todas', ...new Set(prods.map(p => p.category).filter(Boolean))];
-                        setCategories(uniqueCats);
-                    },
-                    (error) => console.error("Firestore error:", error)
-                );
+                const unsubscribe = onSnapshot(query(productsRef), (snapshot) => {
+                    const prods = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    setProducts(prods);
+                    const uniqueCats = ['Todas', ...new Set(prods.map(p => p.category).filter(Boolean))];
+                    setCategories(uniqueCats);
+                }, (error) => console.error("Firestore error:", error));
                 return () => unsubscribe();
             }, [user]);
 
@@ -140,8 +126,10 @@
                     name: formData.get('name'),
                     description: formData.get('description'),
                     price: parseFloat(formData.get('price')) || 0,
+                    oldPrice: parseFloat(formData.get('oldPrice')) || null,
                     category: formData.get('category') || 'General',
                     image: formData.get('image') || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500',
+                    isFeatured: formData.get('isFeatured') === 'on',
                     updatedAt: serverTimestamp()
                 };
 
@@ -153,9 +141,7 @@
                     }
                     setIsModalOpen(false);
                     setEditingProduct(null);
-                } catch (err) { 
-                    alert("Error de permisos en Firestore. Revisa las reglas de seguridad."); 
-                }
+                } catch (err) { alert("Error al guardar. Revisa tus reglas de Firestore."); }
             };
 
             const filteredProducts = useMemo(() => {
@@ -165,11 +151,14 @@
                 );
             }, [products, searchTerm, selectedCategory]);
 
+            // Separar recomendados
+            const recommendedProducts = useMemo(() => products.filter(p => p.isFeatured), [products]);
+
             if (loading) return (
                 <div className="flex h-screen items-center justify-center bg-white">
                     <div className="flex flex-col items-center gap-4">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-indigo-600 border-r-4 border-r-transparent"></div>
-                        <p className="text-slate-400 font-bold">Cargando...</p>
+                        <p className="text-slate-400 font-bold tracking-widest uppercase text-[10px]">Preparando Inventario</p>
                     </div>
                 </div>
             );
@@ -179,7 +168,7 @@
                     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200">
                         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
                             <div className="flex items-center gap-2 cursor-pointer shrink-0" onClick={() => setView('shop')}>
-                                <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg">
+                                <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-lg shadow-indigo-100">
                                     <Icon name="shopping-bag" />
                                 </div>
                                 <span className="text-xl font-black tracking-tight hidden sm:block">{shopConfig.name}</span>
@@ -190,7 +179,7 @@
                                     <Icon name="search" size={16} />
                                 </div>
                                 <input 
-                                    placeholder="Buscar..." 
+                                    placeholder="Buscar productos..." 
                                     className="w-full pl-10 pr-4 py-2 bg-slate-100 rounded-2xl outline-none text-sm focus:ring-2 focus:ring-indigo-500/20"
                                     value={searchTerm}
                                     onChange={e => setSearchTerm(e.target.value)}
@@ -199,74 +188,128 @@
 
                             <button 
                                 onClick={() => setView(view === 'shop' ? 'admin' : 'shop')} 
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'}`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${view === 'admin' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'}`}
                             >
                                 <Icon name={view === 'shop' ? 'settings' : 'layout'} size={18} />
-                                <span className="hidden xs:inline">{view === 'shop' ? 'Gestionar' : 'Ver Tienda'}</span>
+                                <span className="hidden xs:inline">{view === 'shop' ? 'Panel' : 'Tienda'}</span>
                             </button>
                         </div>
                     </header>
 
                     <main className="max-w-7xl mx-auto px-4 py-8">
                         {view === 'shop' ? (
-                            <div className="space-y-8">
-                                <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2">
-                                    {categories.map(c => (
-                                        <button 
-                                            key={c} 
-                                            onClick={() => setSelectedCategory(c)} 
-                                            className={`px-6 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all ${selectedCategory === c ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-500'}`}
-                                        >
-                                            {c}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {filteredProducts.length > 0 ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                                        {filteredProducts.map(p => (
-                                            <div key={p.id} className="product-card group bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
-                                                <div className="relative aspect-square overflow-hidden bg-slate-50">
-                                                    <img src={p.image} className="w-full h-full object-cover transition-transform duration-700" loading="lazy" />
-                                                    <div className="absolute top-4 left-4">
-                                                        <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black uppercase text-indigo-700 shadow-sm">{p.category}</span>
+                            <div className="space-y-12">
+                                {/* Sección de Recomendados (si existen y no hay búsqueda activa) */}
+                                {!searchTerm && recommendedProducts.length > 0 && selectedCategory === 'Todas' && (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-8 bg-indigo-600 rounded-full"></div>
+                                            <h2 className="text-2xl font-black tracking-tight uppercase text-slate-800">Recomendados</h2>
+                                        </div>
+                                        <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-4">
+                                            {recommendedProducts.map(p => (
+                                                <div key={p.id} className="min-w-[280px] sm:min-w-[320px] bg-white rounded-[2.5rem] border-2 border-indigo-100 overflow-hidden shadow-xl shadow-indigo-100/50 flex flex-col">
+                                                    <div className="relative h-48 overflow-hidden bg-slate-50">
+                                                        <img src={p.image} className="w-full h-full object-cover" />
+                                                        <div className="absolute top-4 left-4 flex gap-2">
+                                                            <span className="bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-indigo-200">Destacado</span>
+                                                            {p.oldPrice && (
+                                                                <span className="badge-discount text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-lg shadow-red-200">Oferta</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                                <div className="p-6">
-                                                    <h3 className="font-bold text-lg mb-1 line-clamp-1">{p.name}</h3>
-                                                    <p className="text-slate-400 text-xs mb-4 line-clamp-2 h-8 leading-relaxed">{p.description}</p>
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-2xl font-black text-slate-900">{shopConfig.currency}{p.price}</span>
+                                                    <div className="p-6">
+                                                        <h3 className="font-bold text-lg mb-1">{p.name}</h3>
+                                                        <div className="flex items-end gap-2 mb-4">
+                                                            <span className="text-2xl font-black text-slate-900">{p.price} {shopConfig.currency}</span>
+                                                            {p.oldPrice && (
+                                                                <span className="text-sm text-slate-400 line-through mb-1">{p.oldPrice} {shopConfig.currency}</span>
+                                                            )}
+                                                        </div>
                                                         <button 
-                                                            onClick={() => window.open(`https://wa.me/${shopConfig.phone}?text=${encodeURIComponent(`Hola, me interesa: ${p.name}`)}`)} 
-                                                            className="bg-[#25D366] text-white p-3.5 rounded-2xl shadow-lg transition-all active:scale-90"
+                                                            onClick={() => window.open(`https://wa.me/${shopConfig.phone}?text=${encodeURIComponent(`Hola! Me interesa este recomendado: ${p.name}`)}`)} 
+                                                            className="w-full bg-indigo-600 text-white py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-100"
                                                         >
-                                                            <Icon name="message-circle" size={24} />
+                                                            <Icon name="message-circle" /> Lo quiero
                                                         </button>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
-                                        <Icon name="package-search" size={64} className="mb-4 text-slate-300" />
-                                        <p className="text-xl font-bold">No se encontraron productos</p>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
+
+                                <div className="space-y-8">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex gap-2 overflow-x-auto scrollbar-hide py-2 max-w-full">
+                                            {categories.map(c => (
+                                                <button 
+                                                    key={c} 
+                                                    onClick={() => setSelectedCategory(c)} 
+                                                    className={`px-6 py-2 rounded-2xl text-sm font-bold whitespace-nowrap transition-all ${selectedCategory === c ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-500'}`}
+                                                >
+                                                    {c}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {filteredProducts.length > 0 ? (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                                            {filteredProducts.map(p => (
+                                                <div key={p.id} className="product-card group bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500">
+                                                    <div className="relative aspect-square overflow-hidden bg-slate-50">
+                                                        <img src={p.image} className="w-full h-full object-cover transition-transform duration-700" loading="lazy" />
+                                                        <div className="absolute top-4 left-4 flex flex-col gap-1">
+                                                            <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-black uppercase text-indigo-700 shadow-sm">{p.category}</span>
+                                                            {p.oldPrice && (
+                                                                <span className="badge-discount text-white px-3 py-1 rounded-full text-[10px] font-black uppercase shadow-sm">
+                                                                    -{Math.round((1 - (p.price / p.oldPrice)) * 100)}%
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="p-6">
+                                                        <h3 className="font-bold text-lg mb-1 line-clamp-1">{p.name}</h3>
+                                                        <p className="text-slate-400 text-xs mb-4 line-clamp-2 h-8 leading-relaxed">{p.description}</p>
+                                                        <div className="flex flex-col mb-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-2xl font-black text-slate-900">{p.price} {shopConfig.currency}</span>
+                                                            </div>
+                                                            {p.oldPrice && (
+                                                                <span className="text-xs text-slate-300 line-through">{p.oldPrice} {shopConfig.currency}</span>
+                                                            )}
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => window.open(`https://wa.me/${shopConfig.phone}?text=${encodeURIComponent(`Hola! Quiero comprar: ${p.name}`)}`)} 
+                                                            className="w-full bg-[#25D366] text-white py-3.5 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 font-bold"
+                                                        >
+                                                            <Icon name="message-circle" size={20} /> Pedir ahora
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                                            <Icon name="package-search" size={64} className="mb-4 text-slate-300" />
+                                            <p className="text-xl font-bold">No se encontraron productos</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         ) : (
                             <div className="space-y-6">
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-3xl border border-slate-100 gap-4">
                                     <div>
                                         <h2 className="text-2xl font-black text-indigo-900">Panel de Control</h2>
-                                        <p className="text-slate-400 text-sm">Gestiona tu inventario</p>
+                                        <p className="text-slate-400 text-sm">Gestiona tus precios en {shopConfig.currency}</p>
                                     </div>
                                     <button 
                                         onClick={() => {setEditingProduct(null); setIsModalOpen(true);}} 
                                         className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-bold flex gap-2 items-center hover:bg-indigo-700 shadow-xl w-full sm:w-auto justify-center"
                                     >
-                                        <Icon name="plus" /> Nuevo Producto
+                                        <Icon name="plus" /> Añadir Producto
                                     </button>
                                 </div>
                                 <div className="bg-white rounded-[2rem] border border-slate-100 overflow-hidden shadow-sm">
@@ -275,7 +318,7 @@
                                             <thead className="bg-slate-50 border-b border-slate-100">
                                                 <tr>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Producto</th>
-                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Precio</th>
+                                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Precio Oferta</th>
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Acciones</th>
                                                 </tr>
                                             </thead>
@@ -285,12 +328,16 @@
                                                         <td className="px-6 py-4 flex items-center gap-4">
                                                             <img src={p.image} className="w-12 h-12 rounded-xl object-cover" />
                                                             <div>
-                                                                <p className="font-bold text-slate-700">{p.name}</p>
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-bold text-slate-700">{p.name}</p>
+                                                                    {p.isFeatured && <span className="bg-indigo-100 text-indigo-600 text-[8px] px-2 py-0.5 rounded font-black uppercase">Reco</span>}
+                                                                </div>
                                                                 <p className="text-[10px] text-slate-400 uppercase font-black">{p.category}</p>
                                                             </div>
                                                         </td>
                                                         <td className="px-6 py-4 font-black text-indigo-600">
-                                                            {shopConfig.currency}{p.price}
+                                                            {p.price} {shopConfig.currency}
+                                                            {p.oldPrice && <span className="block text-[10px] text-slate-300 line-through">{p.oldPrice} {shopConfig.currency}</span>}
                                                         </td>
                                                         <td className="px-6 py-4 text-right">
                                                             <div className="flex justify-end gap-2">
@@ -314,23 +361,38 @@
 
                     {isModalOpen && (
                         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
-                            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden">
-                                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                                    <h3 className="text-2xl font-black text-slate-800">{editingProduct ? 'Editar' : 'Nuevo'} Producto</h3>
+                            <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+                                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 sticky top-0 bg-white">
+                                    <h3 className="text-2xl font-black text-slate-800 tracking-tight">{editingProduct ? 'Editar' : 'Nuevo'}</h3>
                                     <button onClick={() => {setIsModalOpen(false); setEditingProduct(null);}} className="text-slate-400 hover:text-slate-900">
                                         <Icon name="x" size={24}/>
                                     </button>
                                 </div>
                                 <form onSubmit={handleSaveProduct} className="p-8 space-y-5">
-                                    <input name="name" defaultValue={editingProduct?.name} placeholder="Nombre" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                                    <input name="name" defaultValue={editingProduct?.name} placeholder="Nombre del producto" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                                    
                                     <div className="grid grid-cols-2 gap-4">
-                                        <input name="price" type="number" step="0.01" defaultValue={editingProduct?.price} placeholder="Precio" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
-                                        <input name="category" defaultValue={editingProduct?.category} placeholder="Categoría" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block ml-1">Precio Actual</label>
+                                            <input name="price" type="number" step="0.01" defaultValue={editingProduct?.price} placeholder="Precio" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block ml-1">Precio Antes (Opcional)</label>
+                                            <input name="oldPrice" type="number" step="0.01" defaultValue={editingProduct?.oldPrice} placeholder="Antes" className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
+                                        </div>
                                     </div>
+
+                                    <input name="category" defaultValue={editingProduct?.category} placeholder="Categoría (Ej: Hogar, Ropa)" required className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
                                     <input name="image" defaultValue={editingProduct?.image} placeholder="URL Imagen" className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none" />
-                                    <textarea name="description" defaultValue={editingProduct?.description} placeholder="Descripción..." className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none h-24 resize-none" />
-                                    <button className="w-full bg-indigo-600 text-white py-4 rounded-[1.5rem] font-black text-lg active:scale-95 transition-all">
-                                        {editingProduct ? 'Guardar' : 'Publicar'}
+                                    <textarea name="description" defaultValue={editingProduct?.description} placeholder="Breve descripción..." className="w-full px-5 py-3 bg-slate-100 rounded-2xl outline-none h-24 resize-none" />
+                                    
+                                    <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl cursor-pointer hover:bg-indigo-50 transition-colors">
+                                        <input type="checkbox" name="isFeatured" defaultChecked={editingProduct?.isFeatured} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                                        <span className="text-sm font-bold text-slate-700 uppercase tracking-tight">Marcar como Recomendado</span>
+                                    </label>
+
+                                    <button className="w-full bg-indigo-600 text-white py-4 rounded-[1.5rem] font-black text-lg active:scale-95 transition-all shadow-xl shadow-indigo-100">
+                                        {editingProduct ? 'Actualizar' : 'Publicar'}
                                     </button>
                                 </form>
                             </div>
