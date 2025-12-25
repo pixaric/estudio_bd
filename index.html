@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registrar Empleado</title>
+</head>
+<body>
+  <h2>Registrar nuevo empleado</h2>
+  <form action="guardar.php" method="post">
+    Nombre: <input type="text" name="nombre" required><br><br>
+    Antigüedad (año): <input type="number" name="antiguedad" min="1900" max="2099" required><br><br>
+    Precio por hora: <input type="number" step="0.01" name="precioHora" required><br><br>
+    Horas: <input type="number" name="horas" required><br><br>
+    <input type="submit" value="Guardar">
+  </form>
+</body>
+</html>
